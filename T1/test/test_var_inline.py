@@ -41,6 +41,10 @@ class TestInlineRewriter(LinterTest):
                             y = x + 2
                             z = x + y
                             self.assertEquals(z,2)""")
+        
+        code = """def test(self):
+                            x = complex_method()
+                            self.assertEquals(x + (x + 2), 2)"""
 
         self.assertAST(result, """def test(self):
                             x = complex_method()
