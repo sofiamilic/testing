@@ -2,6 +2,7 @@ from ast import *
 import ast
 from core.rewriter import RewriterCommand
 from collections import defaultdict
+from copy import deepcopy
 
 class VariableUsageCounter(NodeVisitor):
     def __init__(self):
@@ -29,24 +30,32 @@ class InlineTransformer(NodeTransformer):
         self.variables = {}
     
     def visit_Name(self, node):
-        # Reemplazamos todas las variables que se usen una vez
-        print("node: " + node.id)
-        if isinstance(node, Name) and node.id in self.variables:
+        if isinstance(node, ast.Name) and node.id in self.variables:
             if node.id in self.variables_used_once:
-                print(f"usedOnce: {node.id} value: {self.variables[node.id]}")
-                return self.variables[node.id]
+                node = self.recursive_assign(self.variables[node.id])
+                return node
         return self.generic_visit(node)
+    
+    def recursive_assign(self, node):
+        if isinstance(node, Name) and node.id in self.variables_used_once:
+            return self.variables[node.id]
+        elif isinstance(node, ast.BinOp):
+            node.left = self.recursive_assign(node.left)
+            node.right = self.recursive_assign(node.right)
+        elif isinstance(node, ast.UnaryOp):
+            node.operand = self.recursive_assign(node.operand)
+        elif isinstance(node, ast.Call):
+            node.args = [self.recursive_assign(arg) for arg in node.args]
+        return node
 
     def visit_Assign(self, node):
-        # Solo procesamos asignaciones con un solo objetivo
         if len(node.targets) == 1 and isinstance(node.targets[0], Name):
             variable_name = node.targets[0].id
-            # Solo procesamos asignaciones de variables que no hayan sido declaradas previamente
-            self.variables[variable_name] = node.value
+            self.variables[variable_name] = deepcopy(node.value)
             if variable_name in self.variables_used_once:
-                print(f"usedOnce: {variable_name} value: {node.value}")
+                # No devolvemos nada para eliminar esta asignación
                 return None
-        return self.generic_visit(node)        
+        return self.generic_visit(node)       
 
 def find_variables_used_once(node):
     counter = VariableUsageCounter()
@@ -63,8 +72,6 @@ class InlineCommand(RewriterCommand):
     def apply(self, node):
         # La funcion fix_missing_locations se utiliza para recorrer los nodos del AST y actualizar ciertos atributos
         # (e.g., número de línea) considerando ahora la modificacion
-        print(dump(node, indent=4))
         variables_used_once = find_variables_used_once(node)
-        print(variables_used_once)
         new_tree = fix_missing_locations(InlineTransformer(variables_used_once).visit(node))
         return new_tree
