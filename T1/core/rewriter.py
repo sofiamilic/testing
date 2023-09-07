@@ -15,4 +15,5 @@ def rewrite(commandClass, sourceCode):
     
     command = commandClass()
     tree = command.apply(tree)
+    print(dump(tree, indent=4))
     return unparse(tree)
