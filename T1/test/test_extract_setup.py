@@ -20,6 +20,18 @@ class TestX(TestCase):
         y = 2
         self.assertEquals(y,x)""")
 
+        code = """
+class TestX(TestCase):
+    def setUp(self):
+        self.x = 2
+        self.y = 2
+    def test_x(self):
+        self.assertEquals(self.x,self.y)
+    def test_y(self):
+        self.assertEquals(self.y,self.x)"""
+        print("should be")
+        print(dump(parse(code), indent=4))
+
         self.assertAST(result,
                        """
 class TestX(TestCase):
