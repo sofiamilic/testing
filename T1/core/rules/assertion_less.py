@@ -7,8 +7,14 @@ class AssertionLessVisitor(WarningNodeVisitor):
         super().__init__()
 
     def visit_FunctionDef(self, node):
-        code = dump(node)
-        if "assert" not in code:
+        is_assert = False
+        for stmt in node.body:
+            if isinstance(stmt, Expr):
+                if isinstance(stmt.value, Call):
+                    if isinstance(stmt.value.func, Attribute):
+                        if "assert" in stmt.value.func.attr:
+                            is_assert = True
+        if not is_assert:
             self.addWarning("AssertionLessWarning", node.lineno, "it is an assertion less test")
         self.generic_visit(node)
 
