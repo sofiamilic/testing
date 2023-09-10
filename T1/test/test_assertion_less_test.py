@@ -38,6 +38,20 @@ class TestNoEvalRule(LinterTest):
                             Warning('AssertionLessWarning', 5, 'it is an assertion less test')]
         self.asssertWarning(result, expectedWarnings)
 
+    def test_assert_string(self):
+        result = analyze(AssertionLessTestRule,
+                         """class TestCase():
+    def test_x(self):
+        x = 2
+        y = "assert"
+
+    def test_y(self):
+        y = 5
+        """)
+        expectedWarnings = [Warning('AssertionLessWarning', 2, 'it is an assertion less test'),
+                            Warning('AssertionLessWarning', 6, 'it is an assertion less test')]
+        self.asssertWarning(result, expectedWarnings)
+
 
 if __name__ == '__main__':
     unittest.main()
