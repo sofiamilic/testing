@@ -1,6 +1,7 @@
 from ast import *
 import ast
 from core.rewriter import RewriterCommand
+import inspect
 
 class DuplicatedSetupVisitor(NodeVisitor):
     #  Implementar Clase
@@ -24,7 +25,6 @@ class DuplicatedSetupVisitor(NodeVisitor):
         for i in range(cantidad_lineas):
             diccionario_lineas[i+1] = []
         keys = list(self.dict_functions.keys())
-        #print(keys) ## ['test_x', 'test_y', 'test_z']
         for i in range(cantidad_lineas):
             for j in range(len(keys)):
                 diccionario_lineas[i+1].append(self.dict_functions[keys[j]][i])
@@ -46,13 +46,17 @@ class ExtractSetupTransformer(NodeTransformer):
     def __init__(self, lineas_iguales):
         super().__init__()
         self.funct = []
-        self.variables_to_extract = set()
+        self.variables_to_extract = dict()
         self.lineas_iguales = lineas_iguales
         self.funct_new_body = dict()
 
     def visit_FunctionDef(self, node):
         for i in range(self.lineas_iguales):
-            self.variables_to_extract.add(node.body[i])
+            # Necesito sacar el nombre de la variable en un Assign
+            if isinstance(node.body[i], ast.Assign):
+                for target in node.body[i].targets:
+                    if isinstance(target, ast.Name):
+                        self.variables_to_extract[target.id] = node.body[i]
         new_body = []
         for i in range(self.lineas_iguales, len(node.body)):
             new_body.append(node.body[i])
@@ -64,30 +68,30 @@ class ExtractSetupTransformer(NodeTransformer):
         self.generic_visit(node)
         # Debo crear una function def setUp(self) que contenga las lineas que se repiten y reemplazarlas por self.variable
         setup_func = FunctionDef(name="setUp", args=arguments(args=[arg(arg="self", annotation=None)], posonlyargs=[], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[], decorator_list=[], returns=None)
-        print("variables to extract")
         print(self.variables_to_extract)
-
         # Agregar asignaciones de variables a la función setUp
-        for variable in self.variables_to_extract:
+        for name, variable in self.variables_to_extract.items():
             if isinstance(variable, ast.Assign):
                 for target in variable.targets:
-                    if isinstance(target, ast.Name):
+                    if isinstance(target, ast.Attribute):
                         assign_node = Assign(
-                            targets=[Name(id=target.id, ctx=ast.Store())],
-                            value=Name(id="self." + target.id, ctx=ast.Load())
+                            targets=[Attribute(value=Name(id="self", ctx=Load()), attr=target.attr, ctx=Store())],
+                            value=variable.value
                         )
                         setup_func.body.append(assign_node)
-
-        # Agregar la función setUp al cuerpo de la clase
-        # print("setup func", dump(setup_func, indent=4))
         node.body.insert(0, setup_func)
         # Agregar el resto de las funciones al cuerpo de la clase
         for func_name, func_body in self.funct_new_body.items():
             function = FunctionDef(name=func_name, args=arguments(args=[arg(arg="self", annotation=None)], posonlyargs=[], kwonlyargs=[], kw_defaults=[], defaults=[]), body=func_body, decorator_list=[], returns=None)
             node.body.append(function)
-        # print("node body")
-        # print(dump(node, indent=4))
-        return node        
+        return node
+
+    def visit_Name(self, node):
+        self.generic_visit(node)
+        current_function = inspect.currentframe().f_back.f_code.co_name
+        if current_function != 'setUp' and node.id in self.variables_to_extract.keys():
+            return Attribute(value=Name(id="self", ctx=Load()), attr=node.id, ctx=Load())
+        return node
 
 
 class ExtractSetupCommand(RewriterCommand):
@@ -96,13 +100,8 @@ class ExtractSetupCommand(RewriterCommand):
         visitor = DuplicatedSetupVisitor()
         visitor.visit(node)
         lineas_iguales = visitor.contador_lineas
-        # print("Initial node")
-        # print(dump(node, indent=4))
-        print(f"lineas iguales: {lineas_iguales}")
         if lineas_iguales > 0:
             new_tree = fix_missing_locations(ExtractSetupTransformer(lineas_iguales).visit(node))
-            print("New tree")
-            print(dump(new_tree, indent=4))
             return new_tree
         else:
             return node
