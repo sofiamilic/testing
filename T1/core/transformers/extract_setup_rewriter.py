@@ -46,6 +46,7 @@ class ExtractSetupTransformer(NodeTransformer):
     def __init__(self, lineas_iguales):
         super().__init__()
         self.funct = []
+        self.set_up_body = dict()
         self.variables_to_extract = dict()
         self.lineas_iguales = lineas_iguales
         self.funct_new_body = dict()
@@ -57,6 +58,10 @@ class ExtractSetupTransformer(NodeTransformer):
                 for target in node.body[i].targets:
                     if isinstance(target, ast.Name):
                         self.variables_to_extract[target.id] = node.body[i]
+                    else:
+                        self.set_up_body[node.name] = node.body[i]
+            else:
+                self.set_up_body[node.name] = node.body[i]
         new_body = []
         for i in range(self.lineas_iguales, len(node.body)):
             new_body.append(node.body[i])
@@ -68,7 +73,6 @@ class ExtractSetupTransformer(NodeTransformer):
         self.generic_visit(node)
         # Debo crear una function def setUp(self) que contenga las lineas que se repiten y reemplazarlas por self.variable
         setup_func = FunctionDef(name="setUp", args=arguments(args=[arg(arg="self", annotation=None)], posonlyargs=[], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[], decorator_list=[], returns=None)
-        print(self.variables_to_extract)
         # Agregar asignaciones de variables a la función setUp
         for name, variable in self.variables_to_extract.items():
             if isinstance(variable, ast.Assign):
@@ -79,6 +83,10 @@ class ExtractSetupTransformer(NodeTransformer):
                             value=variable.value
                         )
                         setup_func.body.append(assign_node)
+        # Agregar las lineas que se repiten a la función setUp
+        set_up_items = list(self.set_up_body.items())
+        if len(set_up_items) > 0:
+            setup_func.body.append(set_up_items[0][1])
         node.body.insert(0, setup_func)
         # Agregar el resto de las funciones al cuerpo de la clase
         for func_name, func_body in self.funct_new_body.items():

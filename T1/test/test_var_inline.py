@@ -50,6 +50,33 @@ class TestInlineRewriter(LinterTest):
                             x = complex_method()
                             self.assertEquals(x + (x + 2), 2)""")
 
+    def test_inline5(self):
+        result = rewrite(InlineCommand,
+                         """def test(self):
+                            x = complex_method()
+                            y = x + 2
+                            z = x + y
+                            h = z + y
+                            self.assertEquals(h, 2)""")
+
+        self.assertAST(result, """def test(self):
+                            x = complex_method()
+                            y = x + 2
+                            self.assertEquals(x + y + y, 2)""")
+    
+    def test_inline6(self):
+        result = rewrite(InlineCommand,
+                         """def test(self):
+                            x = complex_method()
+                            y = x + 2
+                            for i in range(10):
+                                y = y + 1""")
+
+        self.assertAST(result, """def test(self):
+                            y = complex_method() + 2
+                            for i in range(10):
+                                y = y + 1""")
+
 
 if __name__ == '__main__':
     unittest.main()

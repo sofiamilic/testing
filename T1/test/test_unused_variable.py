@@ -58,6 +58,26 @@ class TestUnusedVariable(LinterTest):
                             Warning('UnusedVariable', 10, 'variable y has not been used')]
         print(result)
         self.asssertWarning(result, expectedWarnings)
+    
+    def test_unused_variable5(self):
+        result = analyze(UnusedVariableTestRule,
+                         """class TestCase():
+    def test_x(self):
+        x = 2
+        y = 2 * x
+        z = False
+        self.assertTrue(z)
+
+    def test_y(self):
+        x = 2
+        p = Person("Juan", "?")
+        z = False
+        self.assertTrue(z)""")
+        expectedWarnings = [Warning('UnusedVariable', 4, 'variable y has not been used'),
+                            Warning('UnusedVariable', 9, 'variable x has not been used'),
+                            Warning('UnusedVariable', 10, 'variable p has not been used')]
+        print(result)
+        self.asssertWarning(result, expectedWarnings)
 
 
 if __name__ == '__main__':
