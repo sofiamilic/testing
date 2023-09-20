@@ -4,6 +4,8 @@ import ast
 
 # Clase que permite inyectar codigo de tal forma que podamos reportar que funciones se ejecutan
 class FunctionInstrumentor(NodeTransformer):
+    def __init__(self):
+        self.call_stack = [] #Para rastrear los llamadores de funciones
     
     def visit_Module(self, node: Module):
         transformedNode = NodeTransformer.generic_visit(self, node)
@@ -15,6 +17,9 @@ class FunctionInstrumentor(NodeTransformer):
 
     def visit_FunctionDef(self, node: FunctionDef):
         transformedNode = NodeTransformer.generic_visit(self, node)
+
+        if self.call_stack:
+            transformedNode.callers = list(self.call_stack)
         
         # Inyectamos codigo para llamar al profiler en la primera línea de la definicion de una funcion
         argList = list(map(lambda x: x.arg, transformedNode.args.args))
@@ -51,6 +56,15 @@ class FunctionInstrumentor(NodeTransformer):
             transformedNode.body.append(after)
         
         fix_missing_locations(transformedNode)
+
+        self.call_stack.append(transformedNode.name)
         
         return transformedNode
+    
+    def visit_Call(self, node):
+        #Recorremos las llamadas y mantenemos la pila actualizada
+        if isinstance(node.func, Name) and node.func.id != 'record_start':
+            if self.call_stack:
+                self.call_stack.pop()
+        return NodeTransformer.generic_visit(self, node)
 
