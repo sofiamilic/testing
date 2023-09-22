@@ -36,6 +36,9 @@ class AbstractProfiler:
     def fun_call_end(self, functionName, returnValue):
         pass
 
+    def get_callers(self, code):
+        pass
+    
     # recibe un archivo que contiene un programa
     # lo instrumenta y lo ejecuta recolectando datos en el profiler
     # devuelve el objeto profiler con los datos
@@ -45,8 +48,9 @@ class AbstractProfiler:
         instance = cls.getInstance()
         ast = cls.get_ast_from_file(fileName)
         newAst = cls.instrument(ast)
+        #print("Aca estoy")
         print(unparse(newAst))  # Esta línea imprime el codigo modificado después de inyectarle líneas con el profiler pueden comentarla o descomentarla si quieren
-        
+        cls.getInstance().get_callers(unparse(newAst))
         exec(compile(newAst, filename="<ast>", mode ="exec"), locals(), locals())
         return instance
     

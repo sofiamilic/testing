@@ -8,7 +8,8 @@ class Profiler(AbstractProfiler):
     def __init__(self):
         super().__init__()
         self.records = {}
-        self.call_stack = []
+        self.callers = {}
+
 
         
     
@@ -23,20 +24,36 @@ class Profiler(AbstractProfiler):
         super().fun_call_start(functionName, args)
         record = self.get_record(functionName)
         record.call_start_time = time.time()
-        caller = None
-        if self.call_stack:
-            caller = self.call_stack[-1]
-        record.add_caller(caller)
+        
 
     def fun_call_end(self, functionName, returnValue):
         record = self.get_record(functionName)
         call_end_time = time.time()
         execution_time = call_end_time - record.call_start_time
-
         super().fun_call_end(functionName, returnValue)
         record.update_execution_time(execution_time)
         record.increment_frequency()
-        self.call_stack.append(functionName)
+        #print("Callers: ", self.callers)
+        record.callers = self.callers[functionName]
+
+    def get_callers(self, code):
+        #print("Aca ingrese a mi nueva funcion")
+        dict = {}
+        actual_function = ""
+        for line in code.splitlines():
+            if "def" in line:
+                actual_function = line.split(" ")[1].split("(")[0]
+                dict[actual_function] = []
+        
+        for line in code.splitlines():
+            if "def" in line:
+                actual_function = line.split(" ")[1].split("(")[0]
+            for key in dict.keys():
+                if key in line and key != actual_function and actual_function not in dict[key]:
+                    dict[key].append(actual_function)
+        self.callers = dict
+        
+
     
 
     # print report
