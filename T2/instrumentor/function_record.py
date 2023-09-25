@@ -25,9 +25,9 @@ class FunctionRecord:
     
 
     def print_report(self):
-        cache_status = 1 if self.cacheable else 0
+        cache_status = str(1 if self.cacheable else 0)
         avg = "{:.3f}".format(self.avg_execution_time())
         max = "{:.3f}".format(self.max_execution_time)
         min = "{:.3f}".format(self.min_execution_time())
         callers_str = str(self.callers)
-        print("{:<30} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}".format(self.functionName, self.frequency, avg, max, min, 0, callers_str))
+        print("{:<30} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}".format(self.functionName, self.frequency, avg, max, min, cache_status, callers_str))

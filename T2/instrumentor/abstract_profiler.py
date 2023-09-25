@@ -58,6 +58,30 @@ class AbstractProfiler:
     @classmethod
     def instrument(cls, ast):
         visitor = FunctionInstrumentor()
+
+# Marcar la función como no cacheable antes de la instrumentación
+        if isinstance(ast, FunctionDef):
+            functionName = ast.name
+            cls.getInstance().set_function_uncacheable(functionName)
+
+        # Agregar un nuevo nodo `return` al final de la función instrumentada
+        if isinstance(ast, FunctionDef) and ast.body:
+            last_statement = ast.body[-1]
+            if not isinstance(last_statement, Return):
+                return_value = Call(
+                    func=Attribute(
+                        value=Name(id='Profiler', ctx=Load()),
+                        attr='record_end',
+                        ctx=Load()
+                    ),
+                    args=[
+                        Constant(value=functionName),
+                        Name(id=last_statement.targets[0].id, ctx=Load()) if isinstance(last_statement, Assign) else last_statement.value
+                    ],
+                    keywords=[]
+                )
+                ast.body[-1] = Return(value=return_value)
+
         return fix_missing_locations(visitor.visit(ast))
     
     # recupera el AST dado un archivo

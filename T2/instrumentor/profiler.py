@@ -9,6 +9,8 @@ class Profiler(AbstractProfiler):
         super().__init__()
         self.records = {}
         self.callers = {}
+        self.return_values = {}
+        self.arg_values = {}
 
 
         
@@ -24,6 +26,9 @@ class Profiler(AbstractProfiler):
         super().fun_call_start(functionName, args)
         record = self.get_record(functionName)
         record.call_start_time = time.time()
+        record.current_args = args
+    
+        
         
 
     def fun_call_end(self, functionName, returnValue):
@@ -33,8 +38,23 @@ class Profiler(AbstractProfiler):
         super().fun_call_end(functionName, returnValue)
         record.update_execution_time(execution_time)
         record.increment_frequency()
-        #print("Callers: ", self.callers)
         record.callers = self.callers[functionName]
+        #print("Funcion: ", functionName, "Cacheable: ", record.cacheable,"Args", record.current_args, "Return value: ", returnValue)
+
+        if record.cacheable:
+            if functionName not in self.arg_values:
+                self.arg_values[functionName] = record.current_args
+                self.return_values[functionName] = returnValue
+            else:
+                if self.arg_values[functionName] != record.current_args:
+                    record.set_uncacheable()
+                else:
+                    if self.return_values[functionName] != returnValue:
+                        record.set_uncacheable()
+        
+                
+
+        
 
     def get_callers(self, code):
         #print("Aca ingrese a mi nueva funcion")

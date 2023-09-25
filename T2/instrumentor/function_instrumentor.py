@@ -6,6 +6,7 @@ import ast
 class FunctionInstrumentor(NodeTransformer):
     def __init__(self):
         self.call_stack = [] #Para rastrear los llamadores de funciones
+        self.current_function = None #Para rastrear la funcion actual
     
     def visit_Module(self, node: Module):
         transformedNode = NodeTransformer.generic_visit(self, node)
@@ -16,6 +17,7 @@ class FunctionInstrumentor(NodeTransformer):
         return transformedNode
 
     def visit_FunctionDef(self, node: FunctionDef):
+        self.current_function = node.name
         transformedNode = NodeTransformer.generic_visit(self, node)
 
         if self.call_stack:
@@ -49,9 +51,9 @@ class FunctionInstrumentor(NodeTransformer):
                                 ctx=Load()),
                                 args=arg_list,
                                 keywords=[]))
-
+    
         if isinstance(transformedNode.body[-1], Return):
-            transformedNode.body.insert(-1, after)
+            pass
         else:
             transformedNode.body.append(after)
         
@@ -67,4 +69,21 @@ class FunctionInstrumentor(NodeTransformer):
             if self.call_stack:
                 self.call_stack.pop()
         return NodeTransformer.generic_visit(self, node)
+
+    def visit_Return(self, node):
+        if node.value:
+            return_value = Call(
+                func=Attribute(
+                    value=Name(id='Profiler', ctx=Load()),
+                    attr='record_end',
+                    ctx=Load()
+                ),
+                args=[
+                    Constant(value=self.current_function),
+                    node.value
+                ],
+                keywords=[]
+            )
+            node = Return(value=return_value)
+        return node
 
