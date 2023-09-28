@@ -60,6 +60,7 @@ class Profiler(AbstractProfiler):
         #print("Aca ingrese a mi nueva funcion")
         dict = {}
         actual_function = ""
+        in_function = False
         for line in code.splitlines():
             if "def" in line:
                 actual_function = line.split(" ")[1].split("(")[0]
@@ -68,9 +69,20 @@ class Profiler(AbstractProfiler):
         for line in code.splitlines():
             if "def" in line:
                 actual_function = line.split(" ")[1].split("(")[0]
-            for key in dict.keys():
-                if key in line and key != actual_function and actual_function not in dict[key]:
-                    dict[key].append(actual_function)
+                in_function = True
+            elif "Profiler.record_end" in line:
+                in_function = False
+            elif "Profiler.record_start" in line:
+                pass
+            else:
+                if in_function:
+                    for key in dict.keys():
+                        if key in line and key != actual_function and actual_function not in dict[key]:
+                            dict[key].append(actual_function)
+                        if key in line and key == actual_function and actual_function not in dict[key]:
+                            dict[key].append(actual_function)
+
+                    
         self.callers = dict
         
 
